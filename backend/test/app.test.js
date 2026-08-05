@@ -79,6 +79,14 @@ test('GET /health responde com status ok', async () => {
   assert.deepEqual(payload, { status: 'ok' });
 });
 
+test('GET /documents retorna lista vazia quando não há documentos', async () => {
+  const response = await fetch(`${baseUrl}/documents`);
+  const payload = await parseJson(response);
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(payload, []);
+});
+
 test('POST /upload retorna 400 quando arquivo não é enviado', async () => {
   const formData = new FormData();
   formData.append('owner', 'qa-user');
@@ -124,6 +132,19 @@ test('POST /upload salva arquivo e retorna apenas metadados públicos', async ()
   assert.equal(storedFiles.length, 1);
 });
 
+test('POST /upload seguido de GET /documents inclui o documento enviado', async () => {
+  const uploadResult = await uploadFixture({ owner: 'alice', fileName: 'contrato.txt' });
+
+  const response = await fetch(`${baseUrl}/documents`);
+  const payload = await parseJson(response);
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.length, 1);
+  assert.equal(payload[0].id, uploadResult.payload.id);
+  assert.equal(payload[0].owner, 'alice');
+  assert.equal(payload[0].originalName, 'contrato.txt');
+});
+
 test('POST /upload sanitiza nome perigoso e evita traversal no storage local', async () => {
   const { response, payload } = await uploadFixture({
     owner: 'alice',
@@ -161,6 +182,11 @@ test('GET /documents/:id/download retorna binário do arquivo quando id existe',
 
   assert.equal(response.status, 200);
   assert.equal(body, 'conteudo do arquivo');
+  assert.equal(response.headers.get('content-type'), 'text/plain; charset=utf-8');
+  assert.match(
+    response.headers.get('content-disposition') || '',
+    /attachment;\s*filename="sample\.txt"/,
+  );
 });
 
 test('GET /documents/:id/download retorna 404 para id inexistente', async () => {
