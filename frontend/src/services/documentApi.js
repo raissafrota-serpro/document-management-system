@@ -19,15 +19,17 @@ async function request(path, options = {}) {
   return response;
 }
 
-export async function listDocuments() {
-  const response = await request('/documents');
+export async function listDocuments(options = {}) {
+  const response = await request('/documents', {
+    signal: options.signal,
+  });
   return response.json();
 }
 
 export async function uploadDocument({ file, owner }) {
   const formData = new FormData();
   formData.append('file', file);
-  formData.append('owner', owner?.trim() || 'anonymous');
+  formData.append('owner', owner?.trim() || '');
 
   const response = await request('/upload', {
     method: 'POST',

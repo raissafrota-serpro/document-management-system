@@ -1,23 +1,30 @@
-const fs = require('fs');
 const documentService = require('../services/documentService');
 
-function uploadDocument(req, res) {
+function uploadDocument(req, res, next) {
   if (!req.file) {
     return res.status(400).json({ error: 'Arquivo não enviado.' });
   }
 
-  const owner = req.body?.owner?.trim() || 'anonymous';
-  const document = documentService.createDocumentMetadata(req.file, owner);
+  try {
+    const owner = req.body?.owner;
+    const document = documentService.createDocumentMetadata(req.file, owner);
 
-  return res.status(201).json(document);
+    return res.status(201).json(document);
+  } catch (error) {
+    return next(error);
+  }
 }
 
-function listDocuments(req, res) {
-  const documents = documentService.listDocuments();
-  return res.json(documents);
+function listDocuments(req, res, next) {
+  try {
+    const documents = documentService.listDocuments();
+    return res.json(documents);
+  } catch (error) {
+    return next(error);
+  }
 }
 
-function downloadDocument(req, res) {
+function downloadDocument(req, res, next) {
   const { id } = req.params;
   const fileToDownload = documentService.getDocumentDownloadById(id);
 
@@ -25,11 +32,23 @@ function downloadDocument(req, res) {
     return res.status(404).json({ error: 'Documento não encontrado.' });
   }
 
-  if (!fs.existsSync(fileToDownload.filePath)) {
-    return res.status(404).json({ error: 'Arquivo não encontrado no armazenamento local.' });
-  }
+  res.type(fileToDownload.mimeType);
 
-  return res.download(fileToDownload.filePath, fileToDownload.downloadName);
+  return res.download(fileToDownload.filePath, fileToDownload.downloadName, (error) => {
+    if (!error) {
+      return;
+    }
+
+    if (res.headersSent) {
+      return next(error);
+    }
+
+    if (error.code === 'ENOENT') {
+      return res.status(404).json({ error: 'Arquivo não encontrado no armazenamento local.' });
+    }
+
+    return next(error);
+  });
 }
 
 module.exports = {

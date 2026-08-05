@@ -10,6 +10,13 @@ export default function UploadComponent({ onUploaded }) {
   async function handleSubmit(event) {
     event.preventDefault();
 
+    const normalizedOwner = owner.trim();
+
+    if (!normalizedOwner) {
+      setError('Informe o dono do documento.');
+      return;
+    }
+
     if (!selectedFile) {
       setError('Selecione um arquivo para enviar.');
       return;
@@ -21,7 +28,7 @@ export default function UploadComponent({ onUploaded }) {
     try {
       const uploadedDocument = await uploadDocument({
         file: selectedFile,
-        owner,
+        owner: normalizedOwner,
       });
 
       setSelectedFile(null);

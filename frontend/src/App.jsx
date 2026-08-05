@@ -8,22 +8,36 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const loadDocuments = useCallback(async () => {
-    setIsLoading(true);
-    setError('');
+  const loadDocuments = useCallback(async (signal) => {
+    if (!signal?.aborted) {
+      setIsLoading(true);
+      setError('');
+    }
 
     try {
-      const fetchedDocuments = await listDocuments();
-      setDocuments(fetchedDocuments);
+      const fetchedDocuments = await listDocuments({ signal });
+
+      if (!signal?.aborted) {
+        setDocuments(fetchedDocuments);
+      }
     } catch (loadError) {
-      setError(loadError.message);
+      if (loadError?.name !== 'AbortError' && !signal?.aborted) {
+        setError(loadError.message);
+      }
     } finally {
-      setIsLoading(false);
+      if (!signal?.aborted) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    loadDocuments();
+    const controller = new AbortController();
+    loadDocuments(controller.signal);
+
+    return () => {
+      controller.abort();
+    };
   }, [loadDocuments]);
 
   async function handleUploaded() {
